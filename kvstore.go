@@ -38,8 +38,6 @@ func GetDB() *DB {
 		}
 		kvstore = data
     })
-	fmt.Println("Here")
-	fmt.Printf("%v+", kvstore)
     return kvstore
 }
 

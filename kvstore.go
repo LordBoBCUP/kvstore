@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"runtime"
 	"sync"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 )
 
 var (
-	kvstore *DB
-	once sync.Once
+	kvstore       *DB
+	once          sync.Once
+	storeLocation string
 )
 
 type DB struct {
@@ -22,27 +24,40 @@ type DB struct {
 }
 
 type Row struct {
-	Id       int       `json:"id"`
-	Username string    `json:"username"`
-	Key      uuid.UUID `json:"key"`
-	Date     time.Time `json:"date"`
-	IpAddress	string `json:"ip_address"`
+	Id        int       `json:"id"`
+	Username  string    `json:"username"`
+	Key       uuid.UUID `json:"key"`
+	Date      time.Time `json:"date"`
+	IpAddress string    `json:"ip_address"`
 }
 
-func GetDB() *DB {
+func GetDB(location string) *DB {
 	once.Do(func() {
-        data, err := ReadFromFile()
+		if runtime.GOOS == "windows" {
+			if string(location[len(location)-1:]) != "\\" {
+				storeLocation = location + "\\"
+			}
+			storeLocation = location
+		}
+		if runtime.GOOS == "linux" {
+			if string(location[len(location)-1:]) != "/" {
+				storeLocation = location + "/"
+			}
+			storeLocation = location
+		}
+		
+		data, err := ReadFromFile()
 		if err != nil {
 			fmt.Println(err)
-			panic("Unable to read kvstore db.db - Application exiting.",)
+			panic("Unable to read kvstore db.db - Application exiting.")
 		}
 		kvstore = data
-    })
-    return kvstore
+	})
+	return kvstore
 }
 
 func getNextID() int {
-	if (len(kvstore.DB) < 1) {
+	if len(kvstore.DB) < 1 {
 		return 1
 	}
 
@@ -60,18 +75,18 @@ func WriteToFile() error {
 		return err
 	}
 
-	err = ioutil.WriteFile("db.db", data, 0777)
+	err = ioutil.WriteFile(storeLocation + "db.db", data, 0777)
 	return err
 
 }
 
 func ReadFromFile() (*DB, error) {
-	data, err := ioutil.ReadFile("db.db")
+	data, err := ioutil.ReadFile(storeLocation + "db.db")
 	if err != nil {
 		return nil, err
 	}
 
-	db:= DB{}
+	db := DB{}
 
 	err = json.Unmarshal(data, &db)
 	return &db, err
@@ -80,7 +95,7 @@ func ReadFromFile() (*DB, error) {
 func ExpireOldKeys() {
 	for i, v := range kvstore.DB {
 		t1 := v.Date.Add(time.Hour * 1)
-		if (time.Now().After(t1)) {
+		if time.Now().After(t1) {
 			// Revoke this user
 			fmt.Printf("Removing Key: %v", v)
 			kvstore.DB = RemoveIndex(kvstore.DB, i)
@@ -89,22 +104,22 @@ func ExpireOldKeys() {
 }
 
 func RemoveIndex(s []Row, index int) []Row {
-    return append(s[:index], s[index+1:]...)
+	return append(s[:index], s[index+1:]...)
 }
 
 func AddRow(row *Row) error {
 	row.Id = getNextID()
 	row.Date = time.Now()
 
-	if (row.IpAddress == "") {
+	if row.IpAddress == "" {
 		return errors.New("IP Address was not completed")
 	}
 
-	if (row.Key.String() == "") {
+	if row.Key.String() == "" {
 		return errors.New("Key was not completed.")
 	}
-	
-	if (row.Username == "") {
+
+	if row.Username == "" {
 		return errors.New("Username was not completed.")
 	}
 
@@ -122,7 +137,7 @@ func AddRow(row *Row) error {
 func removeExistingUser(user string) {
 	fmt.Println("here")
 	for i, v := range kvstore.DB {
-		if (v.Username == user) {
+		if v.Username == user {
 			fmt.Println("Removing item", i)
 			kvstore.DB = RemoveIndex(kvstore.DB, i)
 		}
@@ -132,7 +147,7 @@ func removeExistingUser(user string) {
 func ValidateLogin(user string, key string) error {
 	ExpireOldKeys()
 	for _, v := range kvstore.DB {
-		if (v.Username == user && v.Key == uuid.FromStringOrNil(key)) {
+		if v.Username == user && v.Key == uuid.FromStringOrNil(key) {
 			return nil
 		}
 	}

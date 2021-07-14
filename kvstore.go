@@ -45,7 +45,7 @@ func GetDB(location string) *DB {
 			}
 			storeLocation = location
 		}
-		fmt.Println(storeLocation)
+		
 		data, err := ReadFromFile()
 		if err != nil {
 			fmt.Println(err)
@@ -75,7 +75,7 @@ func WriteToFile() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(storeLocation + "db.db", data, 0777)
+	err = ioutil.WriteFile(storeLocation+"db.db", data, 0777)
 	return err
 
 }
@@ -92,9 +92,9 @@ func ReadFromFile() (*DB, error) {
 	return &db, err
 }
 
-func ExpireOldKeys() {
+func ExpireOldKeys() error {
 	tmp := kvstore.DB[:0]
-	
+
 	for _, v := range kvstore.DB {
 		t1 := v.Date.Add(time.Hour * 1)
 		if time.Now().Before(t1) {
@@ -102,6 +102,8 @@ func ExpireOldKeys() {
 		}
 	}
 	kvstore.DB = tmp
+	err := WriteToFile()
+	return err
 }
 
 func RemoveIndex(s []Row, index int) []Row {
@@ -124,18 +126,21 @@ func AddRow(row *Row) error {
 		return errors.New("Username was not completed.")
 	}
 
-	removeExistingUser(row.Username)
+	err := removeExistingUser(row.Username)
+	if err != nil {
+		return err
+	}
 
 	kvstore.DB = append(kvstore.DB, *row)
 
-	err := WriteToFile()
+	err = WriteToFile()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func removeExistingUser(user string) {
+func removeExistingUser(user string) error {
 	fmt.Println("here")
 	for i, v := range kvstore.DB {
 		if v.Username == user {
@@ -143,13 +148,20 @@ func removeExistingUser(user string) {
 			kvstore.DB = RemoveIndex(kvstore.DB, i)
 		}
 	}
+
+	err := WriteToFile()
+	return err
 }
 
 func ValidateLogin(user string, key string, ip string) error {
-	ExpireOldKeys()
+	err := ExpireOldKeys()
+	if err != nil {
+		return err
+	}
+
 	for _, v := range kvstore.DB {
 		if v.Username == user && v.Key == uuid.FromStringOrNil(key) {
-			if (v.IpAddress == ip) {
+			if v.IpAddress == ip {
 				return nil
 			}
 			return errors.New("Username and password accepted, IP address didn't match KeyStore object.")

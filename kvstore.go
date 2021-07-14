@@ -93,14 +93,15 @@ func ReadFromFile() (*DB, error) {
 }
 
 func ExpireOldKeys() {
-	for i, v := range kvstore.DB {
+	tmp := kvstore.DB[:0]
+	
+	for _, v := range kvstore.DB {
 		t1 := v.Date.Add(time.Hour * 1)
-		if time.Now().After(t1) {
-			// Revoke this user
-			fmt.Printf("Removing Key: %v", v)
-			kvstore.DB = RemoveIndex(kvstore.DB, i)
+		if time.Now().Before(t1) {
+			tmp = append(tmp, v)
 		}
 	}
+	kvstore.DB = tmp
 }
 
 func RemoveIndex(s []Row, index int) []Row {

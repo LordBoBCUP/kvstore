@@ -45,7 +45,7 @@ func GetDB(location string) *DB {
 			}
 			storeLocation = location
 		}
-		
+		fmt.Println(storeLocation)
 		data, err := ReadFromFile()
 		if err != nil {
 			fmt.Println(err)
@@ -144,11 +144,14 @@ func removeExistingUser(user string) {
 	}
 }
 
-func ValidateLogin(user string, key string) error {
+func ValidateLogin(user string, key string, ip string) error {
 	ExpireOldKeys()
 	for _, v := range kvstore.DB {
 		if v.Username == user && v.Key == uuid.FromStringOrNil(key) {
-			return nil
+			if (v.IpAddress == ip) {
+				return nil
+			}
+			return errors.New("Username and password accepted, IP address didn't match KeyStore object.")
 		}
 	}
 

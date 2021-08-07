@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/bradfitz/slice"
-	"github.com/gofrs/uuid"
 )
 
 var (
@@ -26,7 +25,7 @@ type DB struct {
 type Row struct {
 	Id        int       `json:"id"`
 	Username  string    `json:"username"`
-	Key       uuid.UUID `json:"key"`
+	Key       string    `json:"key"`
 	Date      time.Time `json:"date"`
 	IpAddress string    `json:"ip_address"`
 }
@@ -118,7 +117,7 @@ func AddRow(row *Row) error {
 		return errors.New("IP Address was not completed")
 	}
 
-	if row.Key.String() == "" {
+	if row.Key == "" {
 		return errors.New("Key was not completed.")
 	}
 
@@ -160,7 +159,7 @@ func ValidateLogin(user string, key string, ip string) error {
 	}
 
 	for _, v := range kvstore.DB {
-		if v.Username == user && v.Key == uuid.FromStringOrNil(key) {
+		if v.Username == user && v.Key == key {
 			if v.IpAddress == ip {
 				return nil
 			}

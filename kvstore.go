@@ -95,7 +95,7 @@ func ExpireOldKeys() error {
 	tmp := kvstore.DB[:0]
 
 	for _, v := range kvstore.DB {
-		t1 := v.Date.Add(time.Hour * 1)
+		t1 := v.Date.Add(time.Hour * 8)
 		if time.Now().Before(t1) {
 			tmp = append(tmp, v)
 		}

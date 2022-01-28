@@ -44,7 +44,7 @@ func GetDB(location string) *DB {
 			}
 			storeLocation = location
 		}
-		
+
 		data, err := ReadFromFile()
 		if err != nil {
 			fmt.Println(err)
@@ -168,4 +168,24 @@ func ValidateLogin(user string, key string, ip string) error {
 	}
 
 	return errors.New("User and key combination not found in database.")
+}
+
+func GetExistingUser(user string) (string, error) {
+	var res string
+
+	// Expire any old keys first.
+	ExpireOldKeys()
+
+	for i, v := range kvstore.DB {
+		if v.Username == user {
+			fmt.Println("Returning item", i)
+			json, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			res = string(json)
+		}
+	}
+
+	return res, nil
 }

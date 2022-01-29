@@ -95,14 +95,26 @@ func ExpireOldKeys() error {
 	tmp := kvstore.DB[:0]
 
 	for _, v := range kvstore.DB {
-		t1 := v.Date.Add(time.Hour * 8)
-		if time.Now().Before(t1) {
+		t1 := v.Date
+		//fmt.Println("t1: ", t1)
+		t2 := v.Date.Add(time.Hour * 12)
+		//fmt.Println("t2: ", t2)
+		now := time.Now().UTC()
+		//fmt.Println("now: ", now)
+
+		if inTimeSpan(t1, t2, now) {
 			tmp = append(tmp, v)
+		} else {
+			fmt.Println(fmt.Sprintf("Expiring: %v with key: %v", v.Username, v.Key))
 		}
 	}
 	kvstore.DB = tmp
 	err := WriteToFile()
 	return err
+}
+
+func inTimeSpan(start, end, check time.Time) bool {
+	return check.After(start) && check.Before(end)
 }
 
 func RemoveIndex(s []Row, index int) []Row {
@@ -111,7 +123,7 @@ func RemoveIndex(s []Row, index int) []Row {
 
 func AddRow(row *Row) error {
 	row.Id = getNextID()
-	row.Date = time.Now()
+	row.Date = time.Now().UTC()
 
 	if row.IpAddress == "" {
 		return errors.New("IP Address was not completed")
@@ -140,10 +152,8 @@ func AddRow(row *Row) error {
 }
 
 func removeExistingUser(user string) error {
-	fmt.Println("here")
 	for i, v := range kvstore.DB {
 		if v.Username == user {
-			fmt.Println("Removing item", i)
 			kvstore.DB = RemoveIndex(kvstore.DB, i)
 		}
 	}
@@ -176,9 +186,8 @@ func GetExistingUser(user string) (string, error) {
 	// Expire any old keys first.
 	ExpireOldKeys()
 
-	for i, v := range kvstore.DB {
+	for _, v := range kvstore.DB {
 		if v.Username == user {
-			fmt.Println("Returning item", i)
 			json, err := json.Marshal(v)
 			if err != nil {
 				return "", err
